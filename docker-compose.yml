@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: servicedesk
+      POSTGRES_USER: servicedesk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_change_me}
+    ports: ["5432:5432"]
+    volumes:
+      - servicedesk_data:/var/lib/postgresql/data
+      - ./backend/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U servicedesk -d servicedesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DATABASE_URL: postgres://servicedesk:${POSTGRES_PASSWORD:-local_dev_change_me}@db:5432/servicedesk
+      JWT_SECRET: ${JWT_SECRET:-replace_this_with_a_long_random_secret_for_local_development}
+      CLIENT_ORIGIN: http://localhost:8080
+      NODE_ENV: development
+    ports: ["5000:5000"]
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5000/api
+    ports: ["8080:80"]
+    depends_on: [api]
+volumes:
+  servicedesk_data:

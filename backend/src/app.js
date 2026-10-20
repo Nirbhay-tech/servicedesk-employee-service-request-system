@@ -1,0 +1,5 @@
+const express=require('express');const cors=require('cors');const helmet=require('helmet');const rateLimit=require('express-rate-limit');const {ZodError}=require('zod');const {authenticate}=require('./middleware/auth');
+const app=express();app.use(helmet());app.use(cors({origin:process.env.CLIENT_ORIGIN||'http://localhost:5173'}));app.use(express.json({limit:'100kb'}));app.use('/api/auth',rateLimit({windowMs:15*60*1000,limit:60,standardHeaders:true,legacyHeaders:false}));
+app.get('/health',(req,res)=>res.json({status:'ok',service:'servicedesk-api',timestamp:new Date().toISOString()}));app.use('/api/auth',require('./routes/auth'));app.use('/api/requests',authenticate,require('./routes/requests'));app.use('/api/users',authenticate,require('./routes/users'));
+app.use((err,req,res,next)=>{if(err instanceof ZodError)return res.status(400).json({error:'Validation failed.',details:err.issues.map(i=>({field:i.path.join('.'),message:i.message}))});if(err.code==='23503')return res.status(400).json({error:'Referenced record does not exist.'});console.error(err);res.status(500).json({error:'Internal server error.'});});
+module.exports=app;

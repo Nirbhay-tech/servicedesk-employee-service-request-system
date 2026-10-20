@@ -1,0 +1,4 @@
+const router=require('express').Router();const db=require('../db');const {allowRoles}=require('../middleware/auth');
+router.get('/',allowRoles('admin','support'),async(req,res,next)=>{try{const r=await db.query("SELECT id,name,email,role,department FROM users WHERE role IN ('support','admin') ORDER BY name");res.json({users:r.rows});}catch(e){next(e);}});
+router.patch('/:id/role',allowRoles('admin'),async(req,res,next)=>{try{const {role}=req.body;if(!['employee','support','admin'].includes(role))return res.status(400).json({error:'Invalid role.'});const r=await db.query('UPDATE users SET role=$1 WHERE id=$2 RETURNING id,name,email,role,department',[role,req.params.id]);if(!r.rowCount)return res.status(404).json({error:'User not found.'});res.json({user:r.rows[0]});}catch(e){next(e);}});
+module.exports=router;
